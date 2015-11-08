@@ -12,6 +12,8 @@ import (
 
 var startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
 var numPlayers = flag.Int("num_players", 2, "Number of players of the game.")
+var numGames = flag.Int("num_games", 1000, "Number of games that will be played.")
+var debug = flag.Bool("debug", false, "Print debug information")
 
 type suit int
 
@@ -154,12 +156,13 @@ func newGame() *game {
 	return g
 }
 
-func (g *game) play() {
+func (g *game) play() int {
 	for {
-		fmt.Print(g)
 		g.garbage = append(g.garbage, g.current)
 		current, asked := g.player().play(g.current, g.asked, g.d)
-		fmt.Println(current, asked)
+		if *debug {
+			fmt.Println(g, current, asked)
+		}
 		if current == nil {
 			g.addCard()
 			g.next()
@@ -167,7 +170,7 @@ func (g *game) play() {
 		}
 		check(current, asked, g.current, g.asked)
 		if g.end() {
-			break
+			return g.ip
 		}
 		g.current, g.asked = current, asked
 		switch g.current.n {
@@ -254,6 +257,12 @@ func check(newc *card, newa suit, oldc *card, olda suit) {
 
 func main() {
 	flag.Parse()
-	g := newGame()
-	g.play()
+	w := make([]int, *numPlayers, *numPlayers)
+	for i := 0; i < *numGames; i++ {
+		g := newGame()
+		w[g.play()]++
+	}
+	for i := 0; i < *numPlayers; i++ {
+		fmt.Println(w[i])
+	}
 }
