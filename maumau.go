@@ -11,8 +11,8 @@ import (
 )
 
 var startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
-var numPlayers = flag.Int("num_players", 2, "Number of players of the game.")
 var numGames = flag.Int("num_games", 1000, "Number of games that will be played.")
+var numTests = flag.Int("num_tests", 100, "Number of tests to be performed.")
 var debug = flag.Bool("debug", false, "Print debug information")
 
 type suit int
@@ -143,8 +143,9 @@ type game struct {
 
 func newGame() *game {
 	g := &game{}
+	g.ip = randInt(2)
 	g.d = newDeck()
-	for np := 0; np < *numPlayers; np++ {
+	for np := 0; np < 2; np++ {
 		p := &player{}
 		for nc := 0; nc < *startingCards; nc++ {
 			p.addCard(g.getCard())
@@ -255,14 +256,33 @@ func check(newc *card, newa suit, oldc *card, olda suit) {
 	}
 }
 
-func main() {
-	flag.Parse()
-	w := make([]int, *numPlayers, *numPlayers)
+func runGame() int {
+	w := 0
 	for i := 0; i < *numGames; i++ {
 		g := newGame()
-		w[g.play()]++
+		if g.play() == 0 {
+			w++
+		}
 	}
-	for i := 0; i < *numPlayers; i++ {
-		fmt.Println(w[i])
+	return w
+}
+
+func main() {
+	flag.Parse()
+	hist := make([]int, *numGames + 1, *numGames + 1)
+	min := *numGames + 1
+	max := 0
+	for i := 0; i < *numTests; i++ {
+		w := runGame()
+		if w < min {
+			min = w
+		}
+		if w > max {
+			max = w
+		}
+		hist[w]++
+	}
+	for i := min; i < max + 1; i++ {
+		fmt.Printf("%v\t%v\n", i, hist[i])
 	}
 }
