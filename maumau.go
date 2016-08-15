@@ -6,44 +6,166 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"math/big"
 	"strconv"
 )
 
-var startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
-var numGames = flag.Int("num_games", 1000, "Number of games that will be played.")
-var numTests = flag.Int("num_tests", 100, "Number of tests to be performed.")
-var debug = flag.Bool("debug", false, "Print debug information")
-
-type suit int
-
-const (
-	none suit = iota
-	spades
-	hearts
-	diamonds
-	clubs
+var (
+	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
+	numGames      = flag.Int("num_games", 1000, "Number of games that will be played.")
+	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
+	playerAI      = flag.String("player_ai", "randomAI", "AI to be used by the main player.")
+	opponentAI    = flag.String("opponent_ai", "onlyFirstAI", "AI to be used by the opponent player.")
+	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
+	debug         = flag.Bool("debug", false, "Print debug information")
 )
 
-type card struct {
-	n int
-	s suit
+func main() {
+	flag.Parse()
+	var results []int
+	total := 0
+	for i := 0; i < *numTests; i++ {
+		res := runGame()
+		results = append(results, res)
+		total += res
+	}
+	avg := float64(total) / float64(*numTests)
+	variance := 0.0
+	for _, res := range results {
+		term := float64(res) - avg
+		variance += term * term
+	}
+	variance /= float64(*numTests)
+	fmt.Printf("%v+-%v\n", avg, math.Sqrt(variance))
 }
 
-func (c *card) String() string {
-	return strconv.Itoa(c.n) + "/" + strconv.Itoa(int(c.s))
+func runGame() int {
+	w := 0
+	for i := 0; i < *numGames; i++ {
+		g := newGame()
+		if g.play() == 0 {
+			w++
+		}
+	}
+	return w
+}
+
+type game struct {
+	players []*player
+	playing int
+	deck    *deck
+	top     *card
+	asked   suit
+	order   int
+	garbage []*card
+}
+
+func newGame() *game {
+	g := &game{}
+	if *randomStart {
+		if *debug {
+			fmt.Println("random_start")
+		}
+		g.playing = randInt(2)
+	}
+	g.deck = newDeck()
+	var pa, oa ai
+	for _, a := range ais {
+		switch a.name() {
+		case *playerAI:
+			pa = a
+			fallthrough
+		case *opponentAI:
+			oa = a
+		}
+	}
+	g.players = []*player{newPlayer(pa), newPlayer(oa)}
+	for nc := 0; nc < *startingCards; nc++ {
+		g.players[0].addCard(g.getCard())
+		g.players[1].addCard(g.getCard())
+	}
+	g.top = g.getCard()
+	g.order = 1
+	return g
+}
+
+func (g *game) play() int {
+	for {
+		top, asked := g.player().play(g.top, g.asked, g.deck)
+		if *debug {
+			fmt.Println(g, top, asked)
+		}
+		if top == nil {
+			g.addCard()
+			g.next()
+			continue
+		}
+		isPlayValid(top, asked, g.top, g.asked)
+		if g.end() {
+			return g.playing
+		}
+		g.garbage = append(g.garbage, g.top)
+		g.top, g.asked = top, asked
+		switch g.top.n {
+		case 1:
+		case 12:
+			if len(g.players) == 2 {
+				g.next()
+			} else {
+				g.order *= -1
+			}
+		case 7:
+			g.next()
+			g.addCard()
+			g.addCard()
+		}
+		g.next()
+	}
+}
+
+func (g *game) player() *player {
+	return g.players[g.playing]
+}
+
+func (g *game) next() {
+	g.playing = (g.playing + g.order + len(g.players)) % len(g.players)
+}
+
+func (g *game) getCard() *card {
+	c := g.deck.getCard()
+	if c != nil {
+		return c
+	}
+	if g.garbage == nil {
+		log.Fatal("empty garbage")
+	}
+	g.deck.cs = g.garbage
+	g.deck.shuffle()
+	g.garbage = nil
+	return g.deck.getCard()
+}
+
+func (g *game) addCard() {
+	g.player().addCard(g.getCard())
+}
+
+func (g *game) end() bool {
+	return g.player().end()
+}
+
+func (g *game) String() string {
+	var b bytes.Buffer
+	b.WriteString(fmt.Sprintf("-> %v %v %v %v %v %v ", len(g.deck.cs), len(g.garbage), g.playing, g.top, g.asked, g.order))
+	for _, p := range g.players {
+		b.WriteString(p.String())
+		b.WriteString(" ")
+	}
+	return b.String()
 }
 
 type deck struct {
 	cs []*card
-}
-
-func randInt(max int) int {
-	b, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
-	if err != nil {
-		log.Fatal(err)
-	}
-	return int(b.Int64())
 }
 
 func newDeck() *deck {
@@ -77,175 +199,146 @@ func (d *deck) getCard() *card {
 	return c
 }
 
+type card struct {
+	n int
+	s suit
+}
+
+func (c *card) String() string {
+	return strconv.Itoa(c.n) + "/" + strconv.Itoa(int(c.s))
+}
+
+type suit int
+
+const (
+	noSuit suit = iota
+	spades
+	hearts
+	diamonds
+	clubs
+)
+
 type player struct {
 	cs []*card
+	ai ai
+}
+
+func newPlayer(a ai) *player {
+	return &player{nil, a}
 }
 
 func (p *player) addCard(c *card) {
 	p.cs = append(p.cs, c)
 }
 
-func (p *player) play(current *card, asked suit, d *deck) (*card, suit) {
-	is := p.find(current, asked)
-	if len(is) == 0 {
-		return nil, none
+func (p *player) play(top *card, asked suit, d *deck) (*card, suit) {
+	i, s := p.ai.play(p.cs, top, asked, d)
+	if i == -1 {
+		return nil, noSuit
 	}
-	i := p.choose(is)
 	c := p.cs[i]
 	p.cs = append(p.cs[:i], p.cs[i+1:]...)
-	if c.n == 11 {
-		return c, p.chooseSuit()
+	if c.n != 11 {
+		return c, noSuit
 	}
-	return c, none
+	return c, s
 }
 
-func (p *player) find(current *card, asked suit) []int {
-	var is []int
-	for i, c := range p.cs {
-		if c.n == 11 {
-			is = append(is, i)
-			continue
-		}
-		if asked != none {
-			if c.s == asked {
-				is = append(is, i)
-			}
-			continue
-		}
-		if c.s == current.s || c.n == current.n {
-			is = append(is, i)
-		}
-	}
-	return is
-}
-
-func (p *player) choose(is []int) int {
-	return is[randInt(len(is))]
-}
-
-func (p *player) chooseSuit() suit {
-	return suit(randInt(4) + 1)
+func (p *player) end() bool {
+	return len(p.cs) == 0
 }
 
 func (p *player) String() string {
 	return fmt.Sprintf("%v", p.cs)
 }
 
-type game struct {
-	ps []*player
-	ip int
-	d *deck
-	current *card
-	asked suit
-	order int
-	garbage []*card
+type ai interface {
+	// play returns the index of the card in cs that should be played, -1 if
+	// there's no card to play, and suit if the card is a 11.
+	play(cs []*card, top *card, asked suit, d *deck) (int, suit)
+	name() string
 }
 
-func newGame() *game {
-	g := &game{}
-	g.ip = randInt(2)
-	g.d = newDeck()
-	for np := 0; np < 2; np++ {
-		p := &player{}
-		for nc := 0; nc < *startingCards; nc++ {
-			p.addCard(g.getCard())
-		}
-		g.ps = append(g.ps, p)
+var ais = []ai{randomAI{}, onlyFirstAI{}, onlyBuyAI{}}
+
+// randomAI plays a random card between the valid cards to play.
+type randomAI struct{}
+
+func (randomAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
 	}
-	g.current = g.getCard()
-	g.order = 1
-	return g
+	return is[randInt(len(is))], suit(randInt(4) + 1)
 }
 
-func (g *game) play() int {
-	for {
-		g.garbage = append(g.garbage, g.current)
-		current, asked := g.player().play(g.current, g.asked, g.d)
-		if *debug {
-			fmt.Println(g, current, asked)
+func (randomAI) name() string {
+	return "randomAI"
+}
+
+type onlyFirstAI struct{}
+
+func (onlyFirstAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	if cs[0].n == 11 {
+		return 0, spades
+	}
+	if asked != noSuit {
+		if cs[0].s == asked {
+			return 0, noSuit
 		}
-		if current == nil {
-			g.addCard()
-			g.next()
+		return -1, noSuit
+	}
+	if cs[0].n == top.n || cs[0].s == top.s {
+		return 0, noSuit
+	}
+	return -1, noSuit
+}
+
+func (onlyFirstAI) name() string {
+	return "onlyFirstAI"
+}
+
+type onlyBuyAI struct{}
+
+func (onlyBuyAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	return -1, noSuit
+}
+
+func (onlyBuyAI) name() string {
+	return "onlyBuyAI"
+}
+
+func validIndexes(cs []*card, top *card, asked suit) []int {
+	var is []int
+	for i, c := range cs {
+		if c.n == 11 {
+			is = append(is, i)
 			continue
 		}
-		check(current, asked, g.current, g.asked)
-		if g.end() {
-			return g.ip
+		if asked != noSuit {
+			if c.s == asked {
+				is = append(is, i)
+			}
+			continue
 		}
-		g.current, g.asked = current, asked
-		switch g.current.n {
-		case  1:
-			g.next()
-		case 7:
-			g.next()
-			g.addCard()
-			g.addCard()
-		case 12:
-			g.order *= -1
+		if c.s == top.s || c.n == top.n {
+			is = append(is, i)
 		}
-		g.next()
 	}
+	return is
 }
 
-func (g *game) player() *player {
-	return g.ps[g.ip]
-}
-
-func (g *game) next() {
-	g.ip = (g.ip + g.order + len(g.ps)) % len(g.ps)
-}
-
-func (g *game) getCard() *card {
-	c := g.d.getCard()
-	if c != nil {
-		return c
-	}
-	if g.garbage == nil {
-		log.Fatal("empty garbage")
-	}
-	g.d.cs = g.garbage
-	g.d.shuffle()
-	g.garbage = nil
-	return g.d.getCard()
-}
-
-func (g *game) addCard() {
-	g.player().addCard(g.getCard())
-}
-
-func (g *game) end() bool {
-	return len(g.player().cs) == 0
-}
-
-func (g *game) String() string {
-	var b bytes.Buffer
-	b.WriteString(strconv.Itoa(g.ip))
-	b.WriteString(" ")
-	b.WriteString(g.current.String())
-	b.WriteString(" ")
-	b.WriteString(strconv.Itoa(int(g.asked)))
-	b.WriteString(" ")
-	b.WriteString(strconv.Itoa(g.order))
-	b.WriteString(" ")
-	for _, p := range g.ps {
-		b.WriteString(p.String())
-		b.WriteString(" ")
-	}
-	return b.String()
-}
-
-func check(newc *card, newa suit, oldc *card, olda suit) {
+func isPlayValid(newc *card, newa suit, oldc *card, olda suit) {
 	if newc.n == 11 {
-		if newa == none {
-			log.Fatal("newc.n = 11, newa = none")
+		if newa == noSuit {
+			log.Fatal("newc.n = 11, newa = noSuit")
 		}
 		return
 	}
-	if newa != none {
+	if newa != noSuit {
 		log.Fatalf("newc.n = %v, newa = %v", newc.n, newa)
 	}
-	if olda != none {
+	if olda != noSuit {
 		if newc.s != olda {
 			log.Fatalf("newc.s = %v, olda = %v", newc.s, olda)
 		}
@@ -256,33 +349,11 @@ func check(newc *card, newa suit, oldc *card, olda suit) {
 	}
 }
 
-func runGame() int {
-	w := 0
-	for i := 0; i < *numGames; i++ {
-		g := newGame()
-		if g.play() == 0 {
-			w++
-		}
+// randInt returns a random number from 0 to max - 1.
+func randInt(max int) int {
+	b, err := rand.Int(rand.Reader, big.NewInt(int64(max)))
+	if err != nil {
+		log.Fatal(err)
 	}
-	return w
-}
-
-func main() {
-	flag.Parse()
-	hist := make([]int, *numGames + 1, *numGames + 1)
-	min := *numGames + 1
-	max := 0
-	for i := 0; i < *numTests; i++ {
-		w := runGame()
-		if w < min {
-			min = w
-		}
-		if w > max {
-			max = w
-		}
-		hist[w]++
-	}
-	for i := min; i < max + 1; i++ {
-		fmt.Printf("%v\t%v\n", i, hist[i])
-	}
+	return int(b.Int64())
 }
