@@ -16,7 +16,7 @@ var (
 	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
 	numGames      = flag.Int("num_games", 100, "Number of games that will be played.")
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
-	ais           = flag.String("ais", "avoidJChooseSuitAI, avoidJChooseSuitAI", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
+	ais           = flag.String("ais", "avoidJChooseSuit,avoidJChooseSuit", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
 	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
 	decks         = flag.Int("decks", 1, "Number of card decks to be used.")
 	debug         = flag.Bool("debug", false, "Print debug information")
@@ -257,13 +257,13 @@ func (p *player) String() string {
 type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
 var aiImplementation = map[string]ai{
-	"avoidJChooseSuitAI": avoidJChooseSuitAI,
-	"aFirstAI":           aFirstAI,
-	"firstAI":            firstAI,
-	"avoidJAI":           avoidJAI,
-	"chooseSuitAI":       chooseSuitAI,
-	"onlyFirstAI":        onlyFirstAI,
-	"onlyBuyAI":          onlyBuyAI,
+	"avoidJChooseSuit": avoidJChooseSuitAI,
+	"aFirst":           aFirstAI,
+	"first":            firstAI,
+	"avoidJ":           avoidJAI,
+	"chooseSuit":       chooseSuitAI,
+	"onlyFirst":        onlyFirstAI,
+	"onlyBuy":          onlyBuyAI,
 }
 
 func avoidJChooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
