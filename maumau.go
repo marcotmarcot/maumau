@@ -257,11 +257,12 @@ func (p *player) String() string {
 type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
 var aiImplementation = map[string]ai{
-	"firstAI":      firstAI,
-	"avoidJAI":     avoidJAI,
-	"chooseSuitAI": chooseSuitAI,
-	"onlyFirstAI":  onlyFirstAI,
-	"onlyBuyAI":    onlyBuyAI,
+	"firstAI":            firstAI,
+	"avoidJAI":           avoidJAI,
+	"chooseSuitAI":       chooseSuitAI,
+	"avoidJChooseSuitAI": avoidJChooseSuitAI,
+	"onlyFirstAI":        onlyFirstAI,
+	"onlyBuyAI":          onlyBuyAI,
 }
 
 func firstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
@@ -294,6 +295,19 @@ func chooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 		return is[0], mostPopularSuit(cs)
 	}
 	return is[0], noSuit
+}
+
+func avoidJChooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	for _, i := range is {
+		if cs[i].n != 11 {
+			return i, noSuit
+		}
+	}
+	return is[0], mostPopularSuit(cs)
 }
 
 func onlyFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
