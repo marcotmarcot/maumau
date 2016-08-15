@@ -14,7 +14,7 @@ import (
 
 var (
 	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
-	numGames      = flag.Int("num_games", 100, "Number of games that will be played.")
+	numGames      = flag.Int("num_games", 1000, "Number of games that will be played.")
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
 	ais           = flag.String("ais", "avoidJChooseSuit,avoidJChooseSuit", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
 	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
