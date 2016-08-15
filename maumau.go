@@ -16,7 +16,7 @@ var (
 	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
 	numGames      = flag.Int("num_games", 100, "Number of games that will be played.")
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
-	ais           = flag.String("ais", "randomAI,randomAI", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
+	ais           = flag.String("ais", "firstAI,firstAI", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
 	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
 	decks         = flag.Int("decks", 1, "Number of card decks to be used.")
 	debug         = flag.Bool("debug", false, "Print debug information")
@@ -253,17 +253,31 @@ func (p *player) String() string {
 type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
 var aiImplementation = map[string]ai{
-	"randomAI":    randomAI,
+	"firstAI":    firstAI,
+	"avoidJAI": avoidJAI,
 	"onlyFirstAI": onlyFirstAI,
 	"onlyBuyAI":   onlyBuyAI,
 }
 
-func randomAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+func firstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	is := validIndexes(cs, top, asked)
 	if len(is) == 0 {
 		return -1, noSuit
 	}
-	return is[randInt(len(is))], suit(randInt(4) + 1)
+	return is[0], suit(randInt(4) + 1)
+}
+
+func avoidJAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	for _, i := range is {
+		if cs[i].n != 11 {
+			return i, noSuit
+		}
+	}
+	return is[0], suit(randInt(4) + 1)
 }
 
 func onlyFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
