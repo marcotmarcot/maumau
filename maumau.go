@@ -13,7 +13,7 @@ import (
 
 var (
 	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
-	numGames      = flag.Int("num_games", 1000, "Number of games that will be played.")
+	numGames      = flag.Int("num_games", 100, "Number of games that will be played.")
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
 	playerAI      = flag.String("player_ai", "randomAI", "AI to be used by the main player.")
 	opponentAI    = flag.String("opponent_ai", "onlyFirstAI", "AI to be used by the opponent player.")
