@@ -9,14 +9,14 @@ import (
 	"math"
 	"math/big"
 	"strconv"
+	"strings"
 )
 
 var (
 	startingCards = flag.Int("starting_cards", 5, "Number of cards each player should start with.")
 	numGames      = flag.Int("num_games", 100, "Number of games that will be played.")
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
-	playerAI      = flag.String("player_ai", "randomAI", "AI to be used by the main player.")
-	opponentAI    = flag.String("opponent_ai", "onlyFirstAI", "AI to be used by the opponent player.")
+	ais           = flag.String("ais", "randomAI,randomAI", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
 	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
 	debug         = flag.Bool("debug", false, "Print debug information")
 )
@@ -70,10 +70,13 @@ func newGame() *game {
 		g.playing = randInt(2)
 	}
 	g.deck = newDeck()
-	g.players = []*player{newPlayer(*playerAI), newPlayer(*opponentAI)}
+	for _, aiName := range strings.Split(*ais, ",") {
+		g.players = append(g.players, newPlayer(aiName))
+	}
 	for nc := 0; nc < *startingCards; nc++ {
-		g.players[0].addCard(g.getCard())
-		g.players[1].addCard(g.getCard())
+		for _, player := range g.players {
+			player.addCard(g.getCard())
+		}
 	}
 	g.top = g.getCard()
 	g.order = 1
@@ -214,7 +217,7 @@ type player struct {
 }
 
 func newPlayer(aiName string) *player {
-	return &player{nil, ais[aiName]}
+	return &player{nil, aiImplementation[aiName]}
 }
 
 func (p *player) addCard(c *card) {
@@ -246,10 +249,10 @@ func (p *player) String() string {
 // no card to play, and suit if the card is a 11.
 type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
-var ais = map[string]ai{
-	"randomAI": randomAI,
+var aiImplementation = map[string]ai{
+	"randomAI":    randomAI,
 	"onlyFirstAI": onlyFirstAI,
-	"onlyBuyAI": onlyBuyAI,
+	"onlyBuyAI":   onlyBuyAI,
 }
 
 func randomAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
