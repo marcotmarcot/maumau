@@ -103,6 +103,7 @@ func (g *game) play() int {
 		g.top, g.asked = top, asked
 		switch g.top.n {
 		case 1:
+			g.next()
 		case 12:
 			if len(g.players) == 2 {
 				g.next()
