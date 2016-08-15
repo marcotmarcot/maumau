@@ -258,6 +258,7 @@ type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
 var aiImplementation = map[string]ai{
 	"avoidJChooseSuitAI": avoidJChooseSuitAI,
+	"aFirstAI":           aFirstAI,
 	"firstAI":            firstAI,
 	"avoidJAI":           avoidJAI,
 	"chooseSuitAI":       chooseSuitAI,
@@ -269,6 +270,24 @@ func avoidJChooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) 
 	is := validIndexes(cs, top, asked)
 	if len(is) == 0 {
 		return -1, noSuit
+	}
+	for _, i := range is {
+		if cs[i].n != 11 {
+			return i, noSuit
+		}
+	}
+	return is[0], mostPopularSuit(cs)
+}
+
+func aFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	for _, i := range is {
+		if cs[i].n == 1 {
+			return i, noSuit
+		}
 	}
 	for _, i := range is {
 		if cs[i].n != 11 {
