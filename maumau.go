@@ -271,10 +271,8 @@ func avoidJChooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) 
 	if len(is) == 0 {
 		return -1, noSuit
 	}
-	for _, i := range is {
-		if cs[i].n != 11 {
-			return i, noSuit
-		}
+	if n := findNumber(cs, is, 11, true); n != -1 {
+		return n, noSuit
 	}
 	return is[0], mostPopularSuit(cs)
 }
@@ -284,15 +282,11 @@ func aFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	if len(is) == 0 {
 		return -1, noSuit
 	}
-	for _, i := range is {
-		if cs[i].n == 1 {
-			return i, noSuit
-		}
+	if n := findNumber(cs, is, 1, false); n != -1 {
+		return n, noSuit
 	}
-	for _, i := range is {
-		if cs[i].n != 11 {
-			return i, noSuit
-		}
+	if n := findNumber(cs, is, 11, true); n != -1 {
+		return n, noSuit
 	}
 	return is[0], mostPopularSuit(cs)
 }
@@ -310,10 +304,8 @@ func avoidJAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	if len(is) == 0 {
 		return -1, noSuit
 	}
-	for _, i := range is {
-		if cs[i].n != 11 {
-			return i, noSuit
-		}
+	if n := findNumber(cs, is, 11, true); n != -1 {
+		return n, noSuit
 	}
 	return is[0], suit(randInt(4) + 1)
 }
@@ -385,6 +377,15 @@ func mostPopularSuit(cs []*card) suit {
 		return suit(randInt(4) + 1)
 	}
 	return mps
+}
+
+func findNumber(cs []*card, is []int, number int, inverse bool) int {
+	for _, i := range is {
+		if (cs[i].n != number) == inverse {
+			return i
+		}
+	}
+	return -1
 }
 
 func isPlayValid(newc *card, newa suit, oldc *card, olda suit) {
