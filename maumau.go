@@ -18,6 +18,7 @@ var (
 	numTests      = flag.Int("num_tests", 100, "Number of tests to be performed.")
 	ais           = flag.String("ais", "randomAI,randomAI", "AI algorithms to be used by each player separated by comma. The first player is the main one.")
 	randomStart   = flag.Bool("random_start", true, "Defines who starts randomly. If false, the first player always starts.")
+	decks         = flag.Int("decks", 1, "Number of card decks to be used.")
 	debug         = flag.Bool("debug", false, "Print debug information")
 )
 
@@ -165,7 +166,9 @@ func newDeck() *deck {
 	d := &deck{}
 	for n := 1; n <= 13; n++ {
 		for s := spades; s <= clubs; s++ {
-			d.cs = append(d.cs, &card{n, s})
+			for i := 0; i < *decks; i++ {
+				d.cs = append(d.cs, &card{n, s})
+			}
 		}
 	}
 	d.shuffle()
