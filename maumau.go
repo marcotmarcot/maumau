@@ -340,10 +340,16 @@ func mostPopularSuit(cs []*card) suit {
 	suits := make(map[suit]int)
 	mps := noSuit
 	for _, c := range cs {
+		if c.n == 11 {
+			continue
+		}
 		suits[c.s]++
 		if suits[c.s] > suits[mps] {
 			mps = c.s
 		}
+	}
+	if mps == noSuit {
+		return suit(randInt(4) + 1)
 	}
 	return mps
 }
