@@ -70,17 +70,7 @@ func newGame() *game {
 		g.playing = randInt(2)
 	}
 	g.deck = newDeck()
-	var pa, oa ai
-	for _, a := range ais {
-		switch a.name() {
-		case *playerAI:
-			pa = a
-			fallthrough
-		case *opponentAI:
-			oa = a
-		}
-	}
-	g.players = []*player{newPlayer(pa), newPlayer(oa)}
+	g.players = []*player{newPlayer(*playerAI), newPlayer(*opponentAI)}
 	for nc := 0; nc < *startingCards; nc++ {
 		g.players[0].addCard(g.getCard())
 		g.players[1].addCard(g.getCard())
@@ -223,8 +213,8 @@ type player struct {
 	ai ai
 }
 
-func newPlayer(a ai) *player {
-	return &player{nil, a}
+func newPlayer(aiName string) *player {
+	return &player{nil, ais[aiName]}
 }
 
 func (p *player) addCard(c *card) {
@@ -232,7 +222,7 @@ func (p *player) addCard(c *card) {
 }
 
 func (p *player) play(top *card, asked suit, d *deck) (*card, suit) {
-	i, s := p.ai.play(p.cs, top, asked, d)
+	i, s := p.ai(p.cs, top, asked, d)
 	if i == -1 {
 		return nil, noSuit
 	}
@@ -252,19 +242,17 @@ func (p *player) String() string {
 	return fmt.Sprintf("%v", p.cs)
 }
 
-type ai interface {
-	// play returns the index of the card in cs that should be played, -1 if
-	// there's no card to play, and suit if the card is a 11.
-	play(cs []*card, top *card, asked suit, d *deck) (int, suit)
-	name() string
+// ai returns the index of the card in cs that should be played, -1 if there's
+// no card to play, and suit if the card is a 11.
+type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
+
+var ais = map[string]ai{
+	"randomAI": randomAI,
+	"onlyFirstAI": onlyFirstAI,
+	"onlyBuyAI": onlyBuyAI,
 }
 
-var ais = []ai{randomAI{}, onlyFirstAI{}, onlyBuyAI{}}
-
-// randomAI plays a random card between the valid cards to play.
-type randomAI struct{}
-
-func (randomAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+func randomAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	is := validIndexes(cs, top, asked)
 	if len(is) == 0 {
 		return -1, noSuit
@@ -272,13 +260,7 @@ func (randomAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	return is[randInt(len(is))], suit(randInt(4) + 1)
 }
 
-func (randomAI) name() string {
-	return "randomAI"
-}
-
-type onlyFirstAI struct{}
-
-func (onlyFirstAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+func onlyFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	if cs[0].n == 11 {
 		return 0, spades
 	}
@@ -294,18 +276,8 @@ func (onlyFirstAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) 
 	return -1, noSuit
 }
 
-func (onlyFirstAI) name() string {
-	return "onlyFirstAI"
-}
-
-type onlyBuyAI struct{}
-
-func (onlyBuyAI) play(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+func onlyBuyAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	return -1, noSuit
-}
-
-func (onlyBuyAI) name() string {
-	return "onlyBuyAI"
 }
 
 func validIndexes(cs []*card, top *card, asked suit) []int {
