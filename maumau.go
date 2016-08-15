@@ -261,6 +261,8 @@ var aiImplementation = map[string]ai{
 	"avoidJChooseSuit": avoidJChooseSuitAI,
 	"aFirst":           aFirstAI,
 	"qFirst":           qFirstAI,
+	"7First":           sevenFirstAI,
+	"7AQFirst":         sevenAQFirstAI,
 	"first":            firstAI,
 	"avoidJ":           avoidJAI,
 	"chooseSuit":       chooseSuitAI,
@@ -297,6 +299,40 @@ func qFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 	is := validIndexes(cs, top, asked)
 	if len(is) == 0 {
 		return -1, noSuit
+	}
+	if n := findNumber(cs, is, 12, false); n != -1 {
+		return n, noSuit
+	}
+	if n := findNumber(cs, is, 11, true); n != -1 {
+		return n, noSuit
+	}
+	return is[0], mostPopularSuit(cs)
+}
+
+func sevenFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	if n := findNumber(cs, is, 7, false); n != -1 {
+		return n, noSuit
+	}
+	if n := findNumber(cs, is, 11, true); n != -1 {
+		return n, noSuit
+	}
+	return is[0], mostPopularSuit(cs)
+}
+
+func sevenAQFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	if n := findNumber(cs, is, 7, false); n != -1 {
+		return n, noSuit
+	}
+	if n := findNumber(cs, is, 1, false); n != -1 {
+		return n, noSuit
 	}
 	if n := findNumber(cs, is, 12, false); n != -1 {
 		return n, noSuit
