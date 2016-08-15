@@ -220,7 +220,11 @@ type player struct {
 }
 
 func newPlayer(aiName string) *player {
-	return &player{nil, aiImplementation[aiName]}
+	imp, ok := aiImplementation[aiName]
+	if !ok {
+		log.Fatal("Unexisting ai: ", aiName)
+	}
+	return &player{nil, imp}
 }
 
 func (p *player) addCard(c *card) {
@@ -253,10 +257,11 @@ func (p *player) String() string {
 type ai func(cs []*card, top *card, asked suit, d *deck) (int, suit)
 
 var aiImplementation = map[string]ai{
-	"firstAI":    firstAI,
-	"avoidJAI": avoidJAI,
-	"onlyFirstAI": onlyFirstAI,
-	"onlyBuyAI":   onlyBuyAI,
+	"firstAI":      firstAI,
+	"avoidJAI":     avoidJAI,
+	"chooseSuitAI": chooseSuitAI,
+	"onlyFirstAI":  onlyFirstAI,
+	"onlyBuyAI":    onlyBuyAI,
 }
 
 func firstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
@@ -278,6 +283,17 @@ func avoidJAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
 		}
 	}
 	return is[0], suit(randInt(4) + 1)
+}
+
+func chooseSuitAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
+	is := validIndexes(cs, top, asked)
+	if len(is) == 0 {
+		return -1, noSuit
+	}
+	if cs[is[0]].n == 11 {
+		return is[0], mostPopularSuit(cs)
+	}
+	return is[0], noSuit
 }
 
 func onlyFirstAI(cs []*card, top *card, asked suit, d *deck) (int, suit) {
@@ -318,6 +334,18 @@ func validIndexes(cs []*card, top *card, asked suit) []int {
 		}
 	}
 	return is
+}
+
+func mostPopularSuit(cs []*card) suit {
+	suits := make(map[suit]int)
+	mps := noSuit
+	for _, c := range cs {
+		suits[c.s]++
+		if suits[c.s] > suits[mps] {
+			mps = c.s
+		}
+	}
+	return mps
 }
 
 func isPlayValid(newc *card, newa suit, oldc *card, olda suit) {
